@@ -7,73 +7,153 @@ Original file is located at
     https://colab.research.google.com/drive/15FWOkdALBzysJyvz36aHNSfDaCwviLBr
 """
 
+# --- IMPORT LIBRARIES ---
 import streamlit as st
-import openai
+import openpyxl
 import pandas as pd
-import io
+import openai
+import re
+from io import BytesIO
 
-# --- INITIAL SETUP ---
-st.set_page_config(page_title="AI Grading Agent", page_icon="🎓", layout="wide")
+# --- PAGE SETTINGS ---
+st.set_page_config(
+    page_title="AI Grading Agent for Professor by Dr.K",
+    page_icon=":books:",
+    layout="wide",
+)
 
-# --- SET LIGHT EDUCATION BACKGROUND ---
-page_bg_img = """
-<style>
-[data-testid="stAppViewContainer"] {
-background-image: url("https://images.unsplash.com/photo-1581092580502-3361876f9b45?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=900&q=80&w=1600");
-background-size: cover;
-background-position: center;
-background-repeat: no-repeat;
-background-attachment: fixed;
-}
-[data-testid="stSidebar"] {
-background-color: rgba(255, 255, 255, 0.85);
-}
-h1, h2, h3, h4, h5 {
-color: #0c0c0c;
-}
-</style>
-"""
-st.markdown(page_bg_img, unsafe_allow_html=True)
+# --- CUSTOM BACKGROUND and STYLE ---
+def set_background():
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-image: url("https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d");
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
 
-# --- SESSION STATE INIT ---
+        h1, h2 {
+            color: #ffffff;
+            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
+        }
+
+        p, li, span, div, label, .stText, .stMarkdown {
+            color: #222222;
+        }
+
+        .stFileUploader, .stTextInput, .stButton>button, .stDownloadButton>button {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #333333;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .stButton>button:hover, .stDownloadButton>button:hover {
+            background-color: #224488;
+            color: white;
+        }
+
+        .css-18ni7ap.e8zbici2 {
+            background: rgba(250, 250, 250, 0.8);
+            padding: 1rem;
+            border-radius: 10px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+set_background()
+
+# --- SIDEBAR CONTENT ---
+with st.sidebar:
+    st.title("About")
+    st.info("""
+    **AI Grading Agent for Professor by Dr.K**
+
+    - Upload assignment, rubric, and student Excel.
+    - Automatically detect formula and amount errors.
+    - Generate full personalized feedback using GPT-4o.
+    """)
+
+    st.title("Help")
+    st.warning("""
+    1. Upload assignment/rubric (.txt).
+    2. Upload student and solution (.xlsx).
+    3. Enter student name.
+    4. Click 'Grade Assignment'.
+    5. Download the feedback!
+    """)
+
+    st.markdown("---")
+    st.caption("Created by Dr.K © 2025")
+
+# --- SESSION STATE SETUP ---
 if "page" not in st.session_state:
     st.session_state.page = "landing"
 
 # --- HELPER FUNCTIONS ---
 
+# Load OpenAI API key securely
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+def clean_formula(formula):
+    if formula is None:
+        return None
+    formula = str(formula)  # safely force to string
+    cleaned = re.sub(r"\[[^\]]*\]", "", formula)
+    cleaned = re.sub(r"'[^']*'!", "", cleaned)
+    cleaned = cleaned.replace("'", "")
+    return cleaned
+
 def compare_excel_formulas(student_bytes, solution_bytes):
-    student_df = pd.read_excel(io.BytesIO(student_bytes), engine="openpyxl")
-    solution_df = pd.read_excel(io.BytesIO(solution_bytes), engine="openpyxl")
+    student_wb = openpyxl.load_workbook(BytesIO(student_bytes), data_only=False)
+    solution_wb = openpyxl.load_workbook(BytesIO(solution_bytes), data_only=False)
 
-    student_formulas = student_df.applymap(lambda x: str(x).strip('=') if isinstance(x, str) else x)
-    solution_formulas = solution_df.applymap(lambda x: str(x).strip('=') if isinstance(x, str) else x)
+    results = []
 
-    mismatches = []
-    for col in student_formulas.columns:
-        for idx in student_formulas.index:
-            student_value = student_formulas.at[idx, col]
-            solution_value = solution_formulas.at[idx, col]
-            if student_value != solution_value:
-                mismatches.append({
-                    "Row": idx+1,
-                    "Column": col,
-                    "Student Value": student_value,
-                    "Expected Value": solution_value
-                })
+    for sheet_student, sheet_solution in zip(student_wb.worksheets, solution_wb.worksheets):
+        for row_student, row_solution in zip(sheet_student.iter_rows(), sheet_solution.iter_rows()):
+            for cell_student, cell_solution in zip(row_student, row_solution):
+                if (cell_student.data_type == 'f') or (cell_solution.data_type == 'f'):
+                    student_formula = cell_student.value
+                    solution_formula = cell_solution.value
 
-    return pd.DataFrame(mismatches)
+                    if clean_formula(student_formula) != clean_formula(solution_formula):
+                        results.append({
+                            'Cell': cell_student.coordinate,
+                            'Student Formula': student_formula,
+                            'Correct Formula': solution_formula,
+                            'Error Description': describe_error(student_formula, solution_formula)
+                        })
+    return pd.DataFrame(results)
 
-def generate_feedback(student_name, assignment_goals, rubric_criteria, df_errors):
-    errors_summary = df_errors.to_string(index=False) if not df_errors.empty else "No formula errors detected."
+def describe_error(student_formula, solution_formula):
+    if student_formula is None:
+        return "Missing formula"
+    elif solution_formula is None:
+        return "Extra formula in student file"
+    elif clean_formula(student_formula) != clean_formula(solution_formula):
+        return "Formula mismatch"
+    else:
+        return "Correct"
+
+def generate_feedback(student_name, assignment_goals, rubric_criteria, formula_errors_table):
+    errors_summary = formula_errors_table.to_string(index=False)
+
     prompt = f"""
-Student Name: {student_name}
+You are an AI Grading Agent. Write a personalized feedback report for student {student_name}.
+
 Assignment Goals:
 {assignment_goals}
 
-Grading Rubric:
+Rubric Criteria:
 {rubric_criteria}
 
-Detected Formula Errors:
+Formula Errors Found:
 {errors_summary}
 
 Instructions:
@@ -85,15 +165,17 @@ Instructions:
 
 Tone: Professional, Supportive, Motivating.
 """
-    response = openai.ChatCompletion.create(
+
+    response = openai.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a supportive AI grading assistant helping professors."},
             {"role": "user", "content": prompt}
         ]
     )
-    return response['choices'][0]['message']['content']
+    return response.choices[0].message.content
 
+# --- PASSWORD PROTECTION ---
 def password_protect():
     password = st.text_input("🔒 Enter Access Password:", type="password")
     if password == st.secrets["APP_PASSWORD"]:
@@ -112,8 +194,8 @@ if st.session_state.page == "landing":
 
     st.markdown("""
     **Key Features:**
-    - Upload assignment instructions, rubrics, and student Excel files.
-    - Automatic formula and value error checking.
+    - Upload assignments, rubrics, and student Excel files.
+    - Automatic formula error and amount checking.
     - Full personalized student feedback reports.
 
     Developed by **Dr.K** for modern academic needs.
@@ -123,23 +205,22 @@ if st.session_state.page == "landing":
         st.session_state.page = "password"
 
 # --- PASSWORD PAGE ---
-if st.session_state.page == "password":
+elif st.session_state.page == "password":
     if not password_protect():
         st.stop()
     else:
         st.session_state.page = "grading"
-        st.experimental_rerun()
 
 # --- MAIN GRADING PAGE ---
 if st.session_state.page == "grading":
     st.title("📚 Grading Dashboard")
 
-    assignment_file = st.file_uploader("📄 Upload Assignment Instructions (.txt)", type=["txt"])
-    rubric_file = st.file_uploader("📄 Upload Grading Rubric (.txt)", type=["txt"])
-    student_file = st.file_uploader("📊 Upload Student Excel Submission (.xlsx)", type=["xlsx"])
-    solution_file = st.file_uploader("📊 Upload Correct Solution Excel (.xlsx)", type=["xlsx"])
+    assignment_file = st.file_uploader("Upload Assignment Instructions (.txt)", type=["txt"])
+    rubric_file = st.file_uploader("Upload Grading Rubric (.txt)", type=["txt"])
+    student_file = st.file_uploader("Upload Student Excel Submission (.xlsx)", type=["xlsx"])
+    solution_file = st.file_uploader("Upload Correct Solution Excel (.xlsx)", type=["xlsx"])
 
-    student_name = st.text_input("✏️ Enter Student Name:")
+    student_name = st.text_input("Student Name")
 
     if st.button("🚀 Grade Assignment"):
         if assignment_file and rubric_file and student_file and solution_file and student_name:
