@@ -96,50 +96,63 @@ if "page" not in st.session_state:
     st.session_state.page = "landing"
 
 # --- HELPER FUNCTIONS ---
-
-# Load OpenAI API key securely
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 def clean_formula(formula):
     if formula is None:
         return None
-    formula = str(formula)  # safely force to string
+    formula = str(formula)
     cleaned = re.sub(r"\[[^\]]*\]", "", formula)
     cleaned = re.sub(r"'[^']*'!", "", cleaned)
     cleaned = cleaned.replace("'", "")
     return cleaned
 
+def determine_error(student_formula, solution_formula, student_value, solution_value):
+    if student_formula != solution_formula and student_value != solution_value:
+        return "Formula and Value Mismatch"
+    elif student_formula != solution_formula:
+        return "Formula Mismatch"
+    elif student_value != solution_value:
+        return "Value Mismatch"
+    else:
+        return "Correct"
+
 def compare_excel_formulas(student_bytes, solution_bytes):
     student_wb = openpyxl.load_workbook(BytesIO(student_bytes), data_only=False)
     solution_wb = openpyxl.load_workbook(BytesIO(solution_bytes), data_only=False)
 
+    student_wb_values = openpyxl.load_workbook(BytesIO(student_bytes), data_only=True)
+    solution_wb_values = openpyxl.load_workbook(BytesIO(solution_bytes), data_only=True)
+
     results = []
 
-    for sheet_student, sheet_solution in zip(student_wb.worksheets, solution_wb.worksheets):
-        for row_student, row_solution in zip(sheet_student.iter_rows(), sheet_solution.iter_rows()):
-            for cell_student, cell_solution in zip(row_student, row_solution):
-                if (cell_student.data_type == 'f') or (cell_solution.data_type == 'f'):
-                    student_formula = cell_student.value
-                    solution_formula = cell_solution.value
+    for sheet_student, sheet_solution, sheet_student_values, sheet_solution_values in zip(
+        student_wb.worksheets, solution_wb.worksheets,
+        student_wb_values.worksheets, solution_wb_values.worksheets):
 
-                    if clean_formula(student_formula) != clean_formula(solution_formula):
-                        results.append({
-                            'Cell': cell_student.coordinate,
-                            'Student Formula': student_formula,
-                            'Correct Formula': solution_formula,
-                            'Error Description': describe_error(student_formula, solution_formula)
-                        })
+        for row_student, row_solution, row_student_values, row_solution_values in zip(
+            sheet_student.iter_rows(), sheet_solution.iter_rows(),
+            sheet_student_values.iter_rows(), sheet_solution_values.iter_rows()):
+
+            for cell_student, cell_solution, cell_student_value, cell_solution_value in zip(
+                row_student, row_solution, row_student_values, row_solution_values):
+
+                student_formula = clean_formula(cell_student.value) if cell_student.data_type == 'f' else None
+                solution_formula = clean_formula(cell_solution.value) if cell_solution.data_type == 'f' else None
+                student_value = cell_student_value.value
+                solution_value = cell_solution_value.value
+
+                if student_formula != solution_formula or student_value != solution_value:
+                    results.append({
+                        'Cell': cell_student.coordinate,
+                        'Student Formula': cell_student.value,
+                        'Correct Formula': cell_solution.value,
+                        'Student Value': student_value,
+                        'Correct Value': solution_value,
+                        'Error Type': determine_error(student_formula, solution_formula, student_value, solution_value)
+                    })
+
     return pd.DataFrame(results)
-
-def describe_error(student_formula, solution_formula):
-    if student_formula is None:
-        return "Missing formula"
-    elif solution_formula is None:
-        return "Extra formula in student file"
-    elif clean_formula(student_formula) != clean_formula(solution_formula):
-        return "Formula mismatch"
-    else:
-        return "Correct"
 
 def generate_feedback(student_name, assignment_goals, rubric_criteria, formula_errors_table):
     errors_summary = formula_errors_table.to_string(index=False)
@@ -153,7 +166,7 @@ Assignment Goals:
 Rubric Criteria:
 {rubric_criteria}
 
-Formula Errors Found:
+Formula and Value Errors Found:
 {errors_summary}
 
 Instructions:
@@ -175,7 +188,6 @@ Tone: Professional, Supportive, Motivating.
     )
     return response.choices[0].message.content
 
-# --- PASSWORD PROTECTION ---
 def password_protect():
     password = st.text_input("🔒 Enter Access Password:", type="password")
     if password == st.secrets["APP_PASSWORD"]:
@@ -195,7 +207,7 @@ if st.session_state.page == "landing":
     st.markdown("""
     **Key Features:**
     - Upload assignments, rubrics, and student Excel files.
-    - Automatic formula error and amount checking.
+    - Automatic formula and value error checking.
     - Full personalized student feedback reports.
 
     Developed by **Dr.K** for modern academic needs.
@@ -235,7 +247,7 @@ if st.session_state.page == "grading":
 
                 st.success("✅ Grading Completed Successfully!")
 
-                st.subheader("🧮 Formula Errors Found:")
+                st.subheader("🧮 Formula and Value Errors Found:")
                 st.dataframe(df_errors)
 
                 st.subheader("📝 Personalized Feedback:")
