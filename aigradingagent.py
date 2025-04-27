@@ -16,20 +16,20 @@ import re
 import time
 from io import BytesIO
 
-# --- PAGE SETTINGS ---
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="AI Grading Agent for Professor by Dr.K",
+    page_title="AI Grading Agent for Professors by Dr.K",
     page_icon=":books:",
     layout="wide",
 )
 
-# --- CUSTOM BACKGROUND and STYLE ---
+# --- CUSTOM BACKGROUND AND STYLE ---
 def set_background():
     st.markdown(
         """
         <style>
         .stApp {
-            background-image: url("https://raw.githubusercontent.com/karina7272/AI-Grading-AgentKK/main/IMG_5764.jpg");
+            background-image: url('https://raw.githubusercontent.com/karina7272/AI-Grading-AgentKK/main/IMG_5764.jpg');
             background-attachment: fixed;
             background-size: cover;
             background-position: center;
@@ -37,25 +37,24 @@ def set_background():
         }
         h1, h2 {
             color: white;
-            text-shadow: 1px 1px 8px black;
+            text-shadow: 2px 2px 8px black;
         }
         p, li, div, label, .stText, .stMarkdown {
             color: #222222;
         }
-        .stFileUploader, .stTextInput, .stButton>button, .stDownloadButton>button {
-            background-color: rgba(255, 255, 255, 0.95);
-            color: #222222;
+        .stButton>button, .stDownloadButton>button, .stTextInput>div>div>input {
+            background-color: rgba(255,255,255,0.85);
+            color: black;
             font-weight: bold;
-            border-radius: 8px;
+            border-radius: 10px;
         }
         .stButton>button:hover, .stDownloadButton>button:hover {
-            background-color: #224488;
+            background-color: #004488;
             color: white;
         }
-        .css-18ni7ap.e8zbici2 {
-            background: rgba(255, 255, 255, 0.8);
-            padding: 1rem;
-            border-radius: 12px;
+        .stFileUploader>div>div {
+            background-color: rgba(255,255,255,0.85);
+            border-radius: 10px;
         }
         </style>
         """,
@@ -64,17 +63,16 @@ def set_background():
 
 set_background()
 
-# --- SIDEBAR CONTENT ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.title("About")
     st.info("""
     **AI Grading Agent for Professor by Dr.K**
 
-    - Upload assignment, rubric, and student Excel.
+    - Upload assignment instructions, rubric, and student Excel.
     - Automatically detect formula and amount errors.
     - Generate full personalized feedback using GPT-4o.
     """)
-
     st.title("Help")
     st.warning("""
     1. Upload assignment/rubric (.txt).
@@ -83,11 +81,10 @@ with st.sidebar:
     4. Click 'Grade Assignment'.
     5. Download the feedback!
     """)
-
     st.markdown("---")
     st.caption("Created by Dr.K © 2025")
 
-# --- SESSION STATE SETUP ---
+# --- SESSION SETUP ---
 if "page" not in st.session_state:
     st.session_state.page = "landing"
 
@@ -117,68 +114,71 @@ def compare_excel_formulas(student_bytes, solution_bytes):
     student_wb = openpyxl.load_workbook(BytesIO(student_bytes), data_only=False)
     solution_wb = openpyxl.load_workbook(BytesIO(solution_bytes), data_only=False)
 
-    student_wb_values = openpyxl.load_workbook(BytesIO(student_bytes), data_only=True)
-    solution_wb_values = openpyxl.load_workbook(BytesIO(solution_bytes), data_only=True)
+    student_values = openpyxl.load_workbook(BytesIO(student_bytes), data_only=True)
+    solution_values = openpyxl.load_workbook(BytesIO(solution_bytes), data_only=True)
 
     results = []
 
-    for sheet_student, sheet_solution, sheet_student_values, sheet_solution_values in zip(
+    for s_sheet, sol_sheet, s_val_sheet, sol_val_sheet in zip(
         student_wb.worksheets, solution_wb.worksheets,
-        student_wb_values.worksheets, solution_wb_values.worksheets):
+        student_values.worksheets, solution_values.worksheets):
 
-        for row_student, row_solution, row_student_values, row_solution_values in zip(
-            sheet_student.iter_rows(), sheet_solution.iter_rows(),
-            sheet_student_values.iter_rows(), sheet_solution_values.iter_rows()):
+        for s_row, sol_row, s_val_row, sol_val_row in zip(
+            s_sheet.iter_rows(), sol_sheet.iter_rows(),
+            s_val_sheet.iter_rows(), sol_val_sheet.iter_rows()):
 
-            for cell_student, cell_solution, cell_student_value, cell_solution_value in zip(
-                row_student, row_solution, row_student_values, row_solution_values):
+            for s_cell, sol_cell, s_val_cell, sol_val_cell in zip(
+                s_row, sol_row, s_val_row, sol_val_row):
 
-                student_formula = clean_formula(cell_student.value) if cell_student.data_type == 'f' else None
-                solution_formula = clean_formula(cell_solution.value) if cell_solution.data_type == 'f' else None
-                student_value = cell_student_value.value
-                solution_value = cell_solution_value.value
+                s_formula = clean_formula(s_cell.value) if s_cell.data_type == 'f' else None
+                sol_formula = clean_formula(sol_cell.value) if sol_cell.data_type == 'f' else None
+                s_value = s_val_cell.value
+                sol_value = sol_val_cell.value
 
-                if student_formula != solution_formula or student_value != solution_value:
+                if s_formula != sol_formula or s_value != sol_value:
                     results.append({
-                        'Cell': cell_student.coordinate,
-                        'Student Formula': cell_student.value,
-                        'Correct Formula': cell_solution.value,
-                        'Student Value': student_value,
-                        'Correct Value': solution_value,
-                        'Error Type': determine_error(student_formula, solution_formula, student_value, solution_value)
+                        'Cell': s_cell.coordinate,
+                        'Student Formula': s_cell.value,
+                        'Correct Formula': sol_cell.value,
+                        'Student Value': s_value,
+                        'Correct Value': sol_value,
+                        'Error Type': determine_error(s_formula, sol_formula, s_value, sol_value)
                     })
 
     return pd.DataFrame(results)
 
-def generate_feedback(student_name, assignment_goals, rubric_criteria, formula_errors_table):
-    errors_summary = formula_errors_table.to_string(index=False)
+def generate_feedback(student_name, assignment_goals, rubric_criteria, errors_table):
+    errors_summary = errors_table.to_string(index=False)
 
     prompt = f"""
-You are an AI Grading Agent. Write a personalized feedback report for student {student_name}.
+Write a complete personalized feedback report for {student_name}.
 Assignment Goals:
 {assignment_goals}
+
 Rubric Criteria:
 {rubric_criteria}
-Formula and Value Errors Found:
+
+Errors Found (formula/value mismatches):
 {errors_summary}
+
 Instructions:
-- Start with a welcoming sentence.
-- Highlight strengths.
-- Explain errors clearly.
-- Suggest improvements.
-- Close with positive encouragement.
-Tone: Professional, Supportive, Motivating.
-"""
+- Introduction: short welcoming
+- Strengths: mention good parts
+- Errors: explain clearly
+- Improvements: suggest specific steps
+- Conclusion: motivate for future learning
+
+Tone: Friendly, Supportive, Motivational, Clear.
+    """
 
     retries = 3
-    wait_times = [5, 10, 15]
+    wait_times = [5, 10, 20]
     for attempt in range(retries):
         try:
-            time.sleep(2)
             response = openai.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are a supportive AI grading assistant helping professors."},
+                    {"role": "system", "content": "You are a friendly and highly detailed academic grading assistant."},
                     {"role": "user", "content": prompt}
                 ]
             )
@@ -186,21 +186,21 @@ Tone: Professional, Supportive, Motivating.
         except openai.error.RateLimitError:
             if attempt < retries - 1:
                 wait_time = wait_times[attempt]
-                st.warning(f"⚡ Rate limit reached. Waiting {wait_time} seconds...")
+                st.warning(f"⚡ API rate limit hit. Retrying after {wait_time} seconds...")
                 time.sleep(wait_time)
             else:
-                st.error("❌ OpenAI rate limit reached. Please retry later.")
+                st.error("❌ API Rate limit exceeded. Please retry later.")
                 raise
 
 def password_protect():
     password = st.text_input("🔒 Enter Access Password:", type="password")
     if password == st.secrets["APP_PASSWORD"]:
-        st.success("Access granted. Welcome Professor!")
+        st.success("Access granted! Welcome, Professor!")
         return True
     elif password == "":
         return False
     else:
-        st.error("❌ Incorrect password. Please try again.")
+        st.error("❌ Incorrect password. Try again.")
         return False
 
 # --- LANDING PAGE ---
@@ -240,9 +240,9 @@ if st.session_state.page == "grading":
 
     if st.button("🚀 Grade Assignment"):
         if assignment_file and rubric_file and student_file and solution_file and student_name:
-            with st.spinner("Grading in progress... Please wait..."):
-                assignment_goals = assignment_file.read().decode('utf-8', errors='ignore')
-                rubric_criteria = rubric_file.read().decode('utf-8', errors='ignore')
+            with st.spinner("Grading in progress... please wait..."):
+                assignment_goals = assignment_file.read().decode('utf-8')
+                rubric_criteria = rubric_file.read().decode('utf-8')
                 student_content = student_file.read()
                 solution_content = solution_file.read()
 
@@ -255,12 +255,11 @@ if st.session_state.page == "grading":
                 st.dataframe(df_errors)
 
                 st.subheader("📝 Personalized Feedback:")
-                st.text_area("Feedback Report", value=feedback, height=350)
+                st.text_area("Feedback Report", value=feedback, height=400)
 
                 st.download_button("⬇️ Download Feedback as TXT", feedback.encode(), file_name=f"{student_name}_feedback.txt")
-
         else:
-            st.warning("⚠️ Please upload all required files and enter the student name.")
+            st.warning("⚠️ Please complete all uploads and enter student name before grading.")
 
     if st.button("🔒 Logout"):
         st.session_state.page = "landing"
