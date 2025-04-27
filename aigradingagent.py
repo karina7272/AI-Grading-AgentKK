@@ -28,20 +28,18 @@ def set_background():
         """
         <style>
         .stApp {
-            background-image: url("https://images.unsplash.com/photo-1571260899304-425eee4c7efc");
+            background-image: url("https://images.unsplash.com/photo-1524995997946-a1c2e315a42f");
             background-attachment: fixed;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
         }
 
-        /* Make only big headers (h1, h2) white */
         h1, h2 {
             color: #ffffff;
             text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
         }
 
-        /* All normal body and sidebar text black */
         p, li, span, div, label, .stText, .stMarkdown {
             color: #222222;
         }
@@ -105,9 +103,10 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 def clean_formula(formula):
     if formula is None:
         return None
-    cleaned = re.sub(r"\[[^\]]*\]", "", formula)  # Remove [WorkbookName]
-    cleaned = re.sub(r"'[^']*'!", "", cleaned)    # Remove 'Path\File.xlsx'!
-    cleaned = cleaned.replace("'", "")             # Remove stray quotes
+    formula = str(formula)  # safely force to string
+    cleaned = re.sub(r"\[[^\]]*\]", "", formula)
+    cleaned = re.sub(r"'[^']*'!", "", cleaned)
+    cleaned = cleaned.replace("'", "")
     return cleaned
 
 def compare_excel_formulas(student_bytes, solution_bytes):
