@@ -12,7 +12,6 @@ import pandas as pd
 import openai
 import io
 import base64
-import time
 import re
 from openpyxl import load_workbook
 from tenacity import retry, wait_random_exponential, stop_after_attempt
@@ -20,34 +19,41 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt
 # --- CONFIG ---
 st.set_page_config(page_title="AI Grading Agent for Professors", layout="wide")
 
-# --- BACKGROUND IMAGE ---
-page_bg_img = f"""
-<style>
-[data-testid="stAppViewContainer"] > .main {{
-    background-image: url("https://raw.githubusercontent.com/karina7272/AI-Grading-AgentKK/main/background_final.jpg");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-}}
-h1, h2, h3, h4, h5, h6, .stMarkdown, .stButton > button {{
-    color: white !important;
-}}
-.stSidebar .sidebar-content {{
-    background-color: #f0f2f6;
-}}
-</style>
-"""
-st.markdown(page_bg_img, unsafe_allow_html=True)
+# --- EMBED BACKGROUND IMAGE ---
+def set_bg_from_url(url):
+    st.markdown(
+        f"""
+        <style>
+        [data-testid="stAppViewContainer"] > .main {{
+            background-image: url("{url}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        h1, h2, h3, h4, h5, h6, .stMarkdown, .stButton > button {{
+            color: white;
+        }}
+        .stSidebar {{
+            background-color: #f5f5f5;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Use your correct public GitHub URL here (upload your background_final.jpg to GitHub)
+background_url = "https://raw.githubusercontent.com/karina7272/AI-Grading-AgentKK/main/background_final.jpg"
+set_bg_from_url(background_url)
 
 # --- LOAD OPENAI KEY ---
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# --- Initialize session state ---
+# --- Session ---
 if "page" not in st.session_state:
     st.session_state.page = "landing"
 
-# --- Helper: Retry on OpenAI rate limit ---
+# --- Retry GPT ---
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
 def gpt_response(prompt):
     response = openai.ChatCompletion.create(
@@ -57,7 +63,7 @@ def gpt_response(prompt):
     )
     return response.choices[0].message.content.strip()
 
-# --- Helper: Compare formulas and values ---
+# --- Compare Excel Formulas and Values ---
 def compare_excel(student_bytes, solution_bytes):
     student_wb = load_workbook(filename=io.BytesIO(student_bytes), data_only=False)
     solution_wb = load_workbook(filename=io.BytesIO(solution_bytes), data_only=False)
@@ -98,26 +104,28 @@ def compare_excel(student_bytes, solution_bytes):
     df_errors = pd.DataFrame(errors, columns=["Sheet", "Cell", "Student", "Correct", "Error Type"])
     return df_errors
 
-# --- Main App Logic ---
+# --- Pages ---
 def landing_page():
-    with st.container():
-        st.markdown("## 🎓 Welcome to AI Grading Agent for Professors")
-        st.markdown("### Automate your grading with precision, powered by AI.")
-        st.markdown("""
-        **Key Features:**
-        - Upload assignment instructions, rubric, and student Excel.
-        - Automatically detect formula and amount errors.
-        - Generate full personalized feedback using GPT-4o.
-        """)
-        st.markdown("*Developed by Dr.K for modern academic needs.*")
-        if st.button("🚀 Start Grading Now"):
-            st.session_state.page = "password"
+    st.markdown("<h1 style='text-align: center;'>🎓 Welcome to AI Grading Agent for Professors</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>Automate your grading with precision, powered by AI.</h3>", unsafe_allow_html=True)
+    st.markdown("""
+    <center>
+    <b>Key Features:</b><br>
+    Upload assignments, rubrics, and student Excel files.<br>
+    Automatic formula and amount error checking.<br>
+    Full personalized student feedback reports.<br><br>
+    Developed by Dr.K for modern academic needs.
+    </center>
+    """, unsafe_allow_html=True)
+
+    if st.button("🚀 Start Grading Now", use_container_width=True):
+        st.session_state.page = "password"
 
 def password_page():
     st.subheader("Enter Access Password:")
     password = st.text_input("", type="password")
     if password == st.secrets["APP_PASSWORD"]:
-        st.success("Access granted, Welcome Professor! 🎓")
+        st.success("Access granted, Welcome Professor!")
         st.session_state.page = "dashboard"
     elif password:
         st.error("Incorrect password. Please try again.")
@@ -157,7 +165,7 @@ def grading_dashboard():
             Please generate detailed feedback including:
             - Introduction
             - What was done well
-            - List of specific formula/value errors
+            - List of specific errors
             - Where improvements needed
             - Overall performance comments
             """
@@ -165,10 +173,9 @@ def grading_dashboard():
             feedback = gpt_response(grading_prompt)
 
             st.subheader("📝 Personalized Feedback Report:")
-            st.text_area("Feedback Report", value=feedback, height=350)
+            st.text_area("Feedback", value=feedback, height=400)
 
             st.download_button("📥 Download Feedback", feedback.encode(), file_name=f"{student_name}_feedback.txt")
-
         else:
             st.warning("⚠️ Please upload all files and fill out Student Name.")
 
@@ -190,10 +197,9 @@ with st.sidebar:
     4. Click 'Grade Assignment'.
     5. Download the feedback!
     """)
-
     st.markdown("Created by Dr.K © 2025")
 
-# --- Page Navigation ---
+# --- Page Control ---
 if st.session_state.page == "landing":
     landing_page()
 elif st.session_state.page == "password":
