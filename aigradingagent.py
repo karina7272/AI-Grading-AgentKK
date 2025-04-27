@@ -13,6 +13,7 @@ import openpyxl
 import pandas as pd
 import openai
 import re
+import time
 from io import BytesIO
 
 # --- PAGE SETTINGS ---
@@ -28,7 +29,7 @@ def set_background():
         """
         <style>
         .stApp {
-            background-image: url("https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d");
+            background-image: url("https://images.unsplash.com/photo-1519681393784-d120267933ba");
             background-attachment: fixed;
             background-size: cover;
             background-position: center;
@@ -159,34 +160,44 @@ def generate_feedback(student_name, assignment_goals, rubric_criteria, formula_e
 
     prompt = f"""
 You are an AI Grading Agent. Write a personalized feedback report for student {student_name}.
-
 Assignment Goals:
 {assignment_goals}
-
 Rubric Criteria:
 {rubric_criteria}
-
 Formula and Value Errors Found:
 {errors_summary}
-
 Instructions:
 - Start with a welcoming sentence.
 - Highlight strengths.
 - Explain errors clearly.
 - Suggest improvements.
 - Close with positive encouragement.
-
 Tone: Professional, Supportive, Motivating.
 """
 
-    response = openai.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a supportive AI grading assistant helping professors."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return response.choices[0].message.content
+    retries = 3
+    wait_times = [5, 10, 15]  # seconds wait per retry
+    for attempt in range(retries):
+        try:
+            # Small delay before API call to avoid burst limits
+            time.sleep(2)
+            response = openai.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a supportive AI grading assistant helping professors."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response.choices[0].message.content
+
+        except openai.error.RateLimitError:
+            if attempt < retries - 1:
+                wait_time = wait_times[attempt]
+                st.warning(f"⚡ OpenAI Rate limit hit. Waiting {wait_time} seconds before retrying...")
+                time.sleep(wait_time)
+            else:
+                st.error("❌ OpenAI Rate Limit reached. Please retry after a few minutes.")
+                raise
 
 def password_protect():
     password = st.text_input("🔒 Enter Access Password:", type="password")
