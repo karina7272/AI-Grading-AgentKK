@@ -12,6 +12,7 @@ import streamlit as st
 import openpyxl
 import pandas as pd
 import openai
+import re
 from io import BytesIO
 
 # --- PAGE SETTINGS ---
@@ -21,7 +22,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- CUSTOM BACKGROUND and STYLE ---
+# --- CUSTOM BACKGROUND and TEXT STYLE ---
 def set_background():
     st.markdown(
         """
@@ -31,34 +32,31 @@ def set_background():
             background-attachment: fixed;
             background-size: cover;
             background-position: center;
+            background-repeat: no-repeat;
         }
-        html, body, [class*="css"] {
-            font-family: 'Roboto', sans-serif;
-            color: #2e2e2e;
+
+        /* Apply white color and text shadow */
+        h1, h2, h3, h4, h5, h6, p, li, span, div, .stText, .stMarkdown {
+            color: #ffffff;
+            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
         }
-        .stMarkdown h1 {
-            font-size: 3rem;
-            color: #224488;
-        }
-        .stMarkdown h2 {
-            font-size: 2rem;
-            color: #3366aa;
-        }
-        .stFileUploader {
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 10px;
+
+        .stFileUploader, .stTextInput, .stButton>button, .stDownloadButton>button {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #333333;
             border-radius: 10px;
+            font-weight: bold;
         }
-        .stButton>button {
+
+        .stButton>button:hover, .stDownloadButton>button:hover {
             background-color: #224488;
             color: white;
-            font-weight: bold;
-            border-radius: 8px;
-            padding: 8px 20px;
         }
-        .stButton>button:hover {
-            background-color: #3366aa;
-            color: #ffffff;
+
+        .css-18ni7ap.e8zbici2 {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 1rem;
+            border-radius: 10px;
         }
         </style>
         """,
@@ -99,6 +97,14 @@ if "page" not in st.session_state:
 # Load OpenAI API key securely
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
+def clean_formula(formula):
+    if formula is None:
+        return None
+    cleaned = re.sub(r"\[[^\]]*\]", "", formula)  # Remove [WorkbookName]
+    cleaned = re.sub(r"'[^']*'!", "", cleaned)    # Remove 'Path\File.xlsx'!
+    cleaned = cleaned.replace("'", "")             # Remove stray quotes
+    return cleaned
+
 def compare_excel_formulas(student_bytes, solution_bytes):
     student_wb = openpyxl.load_workbook(BytesIO(student_bytes), data_only=False)
     solution_wb = openpyxl.load_workbook(BytesIO(solution_bytes), data_only=False)
@@ -111,7 +117,8 @@ def compare_excel_formulas(student_bytes, solution_bytes):
                 if (cell_student.data_type == 'f') or (cell_solution.data_type == 'f'):
                     student_formula = cell_student.value
                     solution_formula = cell_solution.value
-                    if student_formula != solution_formula:
+
+                    if clean_formula(student_formula) != clean_formula(solution_formula):
                         results.append({
                             'Cell': cell_student.coordinate,
                             'Student Formula': student_formula,
@@ -125,7 +132,7 @@ def describe_error(student_formula, solution_formula):
         return "Missing formula"
     elif solution_formula is None:
         return "Extra formula in student file"
-    elif student_formula != solution_formula:
+    elif clean_formula(student_formula) != clean_formula(solution_formula):
         return "Formula mismatch"
     else:
         return "Correct"
