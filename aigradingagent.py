@@ -28,7 +28,7 @@ def set_background():
         """
         <style>
         .stApp {
-            background-image: url("https://images.unsplash.com/photo-1524995997946-a1c2e315a42f");
+            background-image: url("https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d");
             background-attachment: fixed;
             background-size: cover;
             background-position: center;
