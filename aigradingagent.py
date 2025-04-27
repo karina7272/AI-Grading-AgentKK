@@ -7,8 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/15FWOkdALBzysJyvz36aHNSfDaCwviLBr
 """
 
-!pip install streamlit openai pandas openpyxl
-
 # --- IMPORT LIBRARIES ---
 import streamlit as st
 import openpyxl
@@ -98,7 +96,7 @@ if "page" not in st.session_state:
 
 # --- HELPER FUNCTIONS ---
 
-# Load OpenAI API key securely from Streamlit Secrets
+# Load OpenAI API key securely
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 def compare_excel_formulas(student_bytes, solution_bytes):
