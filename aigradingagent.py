@@ -29,34 +29,29 @@ def set_background():
         """
         <style>
         .stApp {
-            background-image: url("https://images.unsplash.com/photo-1519681393784-d120267933ba");
+            background-image: url("https://i.imgur.com/7HQsJ4g.jpg");
             background-attachment: fixed;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
         }
-
         h1, h2 {
-            color: #ffffff;
-            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
+            color: white;
+            text-shadow: 1px 1px 6px rgba(0, 0, 0, 0.9);
         }
-
-        p, li, span, div, label, .stText, .stMarkdown {
+        p, li, div, label, .stText, .stMarkdown {
             color: #222222;
         }
-
         .stFileUploader, .stTextInput, .stButton>button, .stDownloadButton>button {
             background-color: rgba(255, 255, 255, 0.9);
             color: #333333;
             border-radius: 10px;
             font-weight: bold;
         }
-
         .stButton>button:hover, .stDownloadButton>button:hover {
             background-color: #224488;
             color: white;
         }
-
         .css-18ni7ap.e8zbici2 {
             background: rgba(250, 250, 250, 0.8);
             padding: 1rem;
@@ -176,10 +171,9 @@ Tone: Professional, Supportive, Motivating.
 """
 
     retries = 3
-    wait_times = [5, 10, 15]  # seconds wait per retry
+    wait_times = [5, 10, 15]
     for attempt in range(retries):
         try:
-            # Small delay before API call to avoid burst limits
             time.sleep(2)
             response = openai.chat.completions.create(
                 model="gpt-4o",
@@ -189,14 +183,13 @@ Tone: Professional, Supportive, Motivating.
                 ]
             )
             return response.choices[0].message.content
-
         except openai.error.RateLimitError:
             if attempt < retries - 1:
                 wait_time = wait_times[attempt]
-                st.warning(f"⚡ OpenAI Rate limit hit. Waiting {wait_time} seconds before retrying...")
+                st.warning(f"⚡ Rate limit reached. Waiting {wait_time} seconds...")
                 time.sleep(wait_time)
             else:
-                st.error("❌ OpenAI Rate Limit reached. Please retry after a few minutes.")
+                st.error("❌ OpenAI rate limit reached. Please retry later.")
                 raise
 
 def password_protect():
