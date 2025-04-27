@@ -22,7 +22,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- CUSTOM BACKGROUND and TEXT STYLE ---
+# --- CUSTOM BACKGROUND and STYLE ---
 def set_background():
     st.markdown(
         """
@@ -35,10 +35,15 @@ def set_background():
             background-repeat: no-repeat;
         }
 
-        /* Apply white color and text shadow */
-        h1, h2, h3, h4, h5, h6, p, li, span, div, .stText, .stMarkdown {
+        /* Make only big headers (h1, h2) white */
+        h1, h2 {
             color: #ffffff;
             text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
+        }
+
+        /* All normal body and sidebar text black */
+        p, li, span, div, label, .stText, .stMarkdown {
+            color: #222222;
         }
 
         .stFileUploader, .stTextInput, .stButton>button, .stDownloadButton>button {
@@ -54,7 +59,7 @@ def set_background():
         }
 
         .css-18ni7ap.e8zbici2 {
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(250, 250, 250, 0.8);
             padding: 1rem;
             border-radius: 10px;
         }
