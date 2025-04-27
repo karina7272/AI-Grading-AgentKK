@@ -9,9 +9,6 @@ Original file is located at
 
 !pip install streamlit openai pandas openpyxl
 
-# Install libraries first (run this in a separate Colab cell)
-# !pip install streamlit openai pandas openpyxl
-
 # --- IMPORT LIBRARIES ---
 import streamlit as st
 import openpyxl
@@ -78,9 +75,9 @@ with st.sidebar:
     st.info("""
     **AI Grading Agent for Professor by Dr.K**
 
-    - Upload assignments, rubrics, and student submissions.
+    - Upload assignment, rubric, and student Excel.
     - Automatically detect formula and amount errors.
-    - Generate full personalized feedback reports.
+    - Generate full personalized feedback using GPT-4o.
     """)
 
     st.title("Help")
@@ -101,11 +98,8 @@ if "page" not in st.session_state:
 
 # --- HELPER FUNCTIONS ---
 
-# ⚡ TEMPORARY: Set API key manually for Colab testing
+# Load OpenAI API key securely from Streamlit Secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-# When deploying to Streamlit Cloud, switch to:
-# openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 def compare_excel_formulas(student_bytes, solution_bytes):
     student_wb = openpyxl.load_workbook(BytesIO(student_bytes), data_only=False)
@@ -191,7 +185,7 @@ if st.session_state.page == "landing":
 
     st.markdown("""
     **Key Features:**
-    - Upload assignments, rubrics, student Excel files.
+    - Upload assignments, rubrics, and student Excel files.
     - Automatic formula error and amount checking.
     - Full personalized student feedback reports.
 
@@ -202,7 +196,7 @@ if st.session_state.page == "landing":
         st.session_state.page = "password"
 
 # --- PASSWORD PAGE ---
-if st.session_state.page == "password":
+elif st.session_state.page == "password":
     if not password_protect():
         st.stop()
     else:
