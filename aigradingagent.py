@@ -29,7 +29,7 @@ def set_background():
         """
         <style>
         .stApp {
-            background-image: url("https://i.imgur.com/7HQsJ4g.jpg");
+            background-image: url("https://raw.githubusercontent.com/karina7272/AI-Grading-AgentKK/main/IMG_5764.jpg");
             background-attachment: fixed;
             background-size: cover;
             background-position: center;
@@ -37,25 +37,25 @@ def set_background():
         }
         h1, h2 {
             color: white;
-            text-shadow: 1px 1px 6px rgba(0, 0, 0, 0.9);
+            text-shadow: 1px 1px 8px black;
         }
         p, li, div, label, .stText, .stMarkdown {
             color: #222222;
         }
         .stFileUploader, .stTextInput, .stButton>button, .stDownloadButton>button {
-            background-color: rgba(255, 255, 255, 0.9);
-            color: #333333;
-            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.95);
+            color: #222222;
             font-weight: bold;
+            border-radius: 8px;
         }
         .stButton>button:hover, .stDownloadButton>button:hover {
             background-color: #224488;
             color: white;
         }
         .css-18ni7ap.e8zbici2 {
-            background: rgba(250, 250, 250, 0.8);
+            background: rgba(255, 255, 255, 0.8);
             padding: 1rem;
-            border-radius: 10px;
+            border-radius: 12px;
         }
         </style>
         """,
