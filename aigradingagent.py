@@ -15,18 +15,21 @@ import io
 # --- INITIAL SETUP ---
 st.set_page_config(page_title="AI Grading Agent", page_icon="🎓", layout="wide")
 
-# --- SET BACKGROUND ---
+# --- SET LIGHT EDUCATION BACKGROUND ---
 page_bg_img = """
 <style>
 [data-testid="stAppViewContainer"] {
-background-image: url("https://images.unsplash.com/photo-1512295767273-ac109ac3acfa?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=900&q=80&w=1600");
+background-image: url("https://images.unsplash.com/photo-1581092580502-3361876f9b45?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=900&q=80&w=1600");
 background-size: cover;
 background-position: center;
 background-repeat: no-repeat;
 background-attachment: fixed;
 }
 [data-testid="stSidebar"] {
-background-color: rgba(255, 255, 255, 0.8);
+background-color: rgba(255, 255, 255, 0.85);
+}
+h1, h2, h3, h4, h5 {
+color: #0c0c0c;
 }
 </style>
 """
@@ -110,7 +113,7 @@ if st.session_state.page == "landing":
     st.markdown("""
     **Key Features:**
     - Upload assignment instructions, rubrics, and student Excel files.
-    - Automatic formula and amount error checking.
+    - Automatic formula and value error checking.
     - Full personalized student feedback reports.
 
     Developed by **Dr.K** for modern academic needs.
