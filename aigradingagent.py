@@ -155,14 +155,14 @@ Instructions:
 Tone: Professional, Supportive, Motivating.
 """
 
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a supportive AI grading assistant helping professors."},
             {"role": "user", "content": prompt}
         ]
     )
-    return response['choices'][0]['message']['content']
+    return response.choices[0].message.content
 
 # --- PASSWORD PROTECTION ---
 def password_protect():
