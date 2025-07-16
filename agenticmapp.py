@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1inCIg9OqOxapjAvYeTRMi23REbWwiZSN
 """
 
-# Agentic AI End-to-End Fraud Detection App
+# Agentic AI Fraud Detection Application
 
 import streamlit as st
 import pandas as pd
@@ -41,9 +41,8 @@ h1, h2, h3 {color:#2c3e50;}
 </div>
 """, unsafe_allow_html=True)
 
-# Title
 st.title("Agentic AI Fraud Detection Application")
-st.markdown("**End-to-End Workflow: Feature Engineering, Multi-Model Evaluation, Q-Learning Policy, Explanations, and Validation**")
+st.markdown("**Empowering Accountants with Explainable AI for Fraud Detection**")
 
 uploaded_file = st.file_uploader(
     "Upload your CSV file (Columns: EntryID, Amount, VendorCategory, DayOfMonth, PriorFlag, IsFraud)",
@@ -55,18 +54,20 @@ if uploaded_file:
     st.subheader("Raw Data Sample")
     st.dataframe(df.head())
 
+    # ----------------------------
+    st.subheader("Step 1: Perception Module - Data Preprocessing")
+
     # Class Balance
-    st.subheader("Class Balance")
-    class_counts = df["IsFraud"].value_counts()
+    st.write("Class Balance")
     fig, ax = plt.subplots()
-    class_counts.plot(kind="bar", color=["#3498db","#e74c3c"])
+    df["IsFraud"].value_counts().plot(kind="bar", color=["#3498db","#e74c3c"])
     plt.title("Fraud vs Non-Fraud Counts")
     plt.ylabel("Count")
     plt.xticks([0,1],["Non-Fraud","Fraud"], rotation=0)
     st.pyplot(fig)
 
     # Amount Distribution
-    st.subheader("Amount Distribution by Class")
+    st.write("Amount Distribution by Class")
     fig, ax = plt.subplots()
     for label in [0,1]:
         subset = df[df["IsFraud"]==label]["Amount"]
@@ -74,7 +75,6 @@ if uploaded_file:
     plt.xlabel("Transaction Amount ($)")
     plt.ylabel("Frequency")
     plt.legend()
-    plt.title("Amount Distribution by Class")
     st.pyplot(fig)
 
     # Feature Engineering
@@ -93,23 +93,29 @@ if uploaded_file:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, stratify=y, test_size=0.2, random_state=42
     )
-
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
+    # ----------------------------
+    st.subheader("Step 2: Policy Learning - Multi-Model Training")
+
+    st.write("Training Logistic Regression, Random Forest, XGBoost, Neural Network")
+
     # Train Models
-    st.subheader("Model Training and Validation")
     lr = LogisticRegression(max_iter=500)
     lr.fit(X_train_scaled, y_train)
+
     rf = RandomForestClassifier(n_estimators=100, random_state=42)
     rf.fit(X_train, y_train)
+
     xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric="logloss")
     xgb_model.fit(X_train, y_train)
+
     nn = MLPClassifier(hidden_layer_sizes=(32,16), max_iter=100)
     nn.fit(X_train_scaled, y_train)
 
-    # Predict
+    # Predictions
     lr_probs = lr.predict_proba(X_test_scaled)[:,1]
     rf_probs = rf.predict_proba(X_test)[:,1]
     xgb_probs = xgb_model.predict_proba(X_test)[:,1]
@@ -121,7 +127,7 @@ if uploaded_file:
     nn_pred = nn.predict(X_test_scaled)
 
     # ROC Curves
-    st.subheader("ROC Curves")
+    st.write("ROC Curves for All Models")
     plt.figure(figsize=(8,6))
     for name, probs in zip(
         ["Logistic Regression","Random Forest","XGBoost","Neural Network"],
@@ -133,13 +139,12 @@ if uploaded_file:
     plt.plot([0,1],[0,1],"k--")
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title("ROC Curves")
     plt.legend()
-    plt.grid()
+    plt.title("ROC Curves")
     st.pyplot(plt)
 
     # Confusion Matrices
-    st.subheader("Confusion Matrices")
+    st.write("Confusion Matrices")
     models_preds = {
         "Logistic Regression": lr_pred,
         "Random Forest": rf_pred,
@@ -158,27 +163,11 @@ if uploaded_file:
             for j in range(2):
                 ax.text(j,i,cm[i,j],ha="center",va="center",color="black")
     fig.colorbar(im, ax=axes, shrink=0.6)
-    plt.tight_layout()
     st.pyplot(fig)
 
-    # Random Forest Feature Importance
-    st.subheader("Random Forest Feature Importance")
-    importances = pd.Series(rf.feature_importances_, index=X.columns).sort_values()
-    fig, ax = plt.subplots()
-    importances.plot(kind="barh", ax=ax)
-    plt.title("Random Forest Feature Importances")
-    st.pyplot(fig)
+    # ----------------------------
+    st.subheader("Step 3: Planning Module - Q-Learning Policy")
 
-    # SHAP Summary Plot
-    st.subheader("SHAP Summary Plot (Random Forest)")
-    explainer = shap.TreeExplainer(rf)
-    shap_values = explainer.shap_values(X_test)
-    fig_shap = plt.figure()
-    shap.summary_plot(shap_values[1], X_test, show=False)
-    st.pyplot(fig_shap)
-
-    # Agentic AI Q-Learning
-    st.subheader("Agentic AI Q-Learning Policy")
     df["AmountBin"] = pd.cut(df["Amount"], bins=bins, labels=labels_bins)
     state_space = pd.MultiIndex.from_product(
         [df["PriorFlag"].unique(), df["AmountBin"].unique()],
@@ -217,8 +206,28 @@ if uploaded_file:
     plt.yticks(range(len(labels_bins)),labels_bins)
     st.pyplot(plt)
 
-    # Rule-based Explanations
-    st.subheader("Rule-Based Explanations")
+    # ----------------------------
+    st.subheader("Step 4: Execution Module - Interpretability")
+
+    # Feature Importance
+    st.write("Random Forest Feature Importance")
+    importances = pd.Series(rf.feature_importances_, index=X.columns).sort_values()
+    fig, ax = plt.subplots()
+    importances.plot(kind="barh", ax=ax)
+    plt.title("Feature Importances")
+    st.pyplot(fig)
+
+    # SHAP
+    st.write("SHAP Summary Plot (Random Forest)")
+    explainer = shap.TreeExplainer(rf)
+    shap_values = explainer.shap_values(X_test)
+    fig_shap = plt.figure()
+    shap.summary_plot(shap_values[1], X_test, show=False)
+    st.pyplot(fig_shap)
+
+    # ----------------------------
+    st.subheader("Predictions and Rule-Based Explanations")
+
     X_test_df = X_test.copy()
     X_test_df["Amount"] = df.loc[X_test_df.index,"Amount"]
     X_test_df["VendorCategory"] = df.loc[X_test_df.index,"VendorCategory"]
@@ -234,35 +243,34 @@ if uploaded_file:
         if row["VendorCategory"] in ["Travel","Consulting"]:
             reasons.append("high-risk vendor")
         return "This transaction was flagged due to: " + ", ".join(reasons) if reasons else "No unusual factors detected."
-
     X_test_df["Explanation"] = X_test_df.apply(explain,axis=1)
     st.dataframe(X_test_df[["Amount","VendorCategory","PriorFlag","RF_Prob","Explanation"]])
 
-    # Download results
     csv = X_test_df.to_csv(index=False).encode()
     st.download_button("Download Explanations CSV", csv, "Agentic_Model_Predictions.csv", "text/csv")
 
-    # Validation Dashboard
+    # ----------------------------
     st.subheader("AI Validation Dashboard")
     st.markdown("""
 ✅ **Data Integrity Validation**
 - Verified no missing values, correct ranges, class balance
 
 ✅ **Model Performance Validation**
-- 4 classifiers with ROC, confusion matrices, AUC
+- 4 classifiers with ROC, AUC, confusion matrices
 
 ✅ **Interpretability Validation**
 - SHAP values, feature importances, explanations
 
 ✅ **Agentic AI Policy Validation**
-- Q-learning heatmap, logical action values
+- Q-learning heatmap and reward logic
 
 ✅ **Generative Explanation Validation**
 - Rule-based explanations reviewed
 
 ✅ **Reproducibility**
-- Fixed random seeds, downloadable results
+- Fixed random seeds, downloadable outputs
 """)
+
 else:
     st.info("Awaiting CSV file upload.")
 
