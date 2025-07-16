@@ -1,4 +1,8 @@
 streamlit
-openai
-openpyxl
 pandas
+numpy
+scikit-learn
+xgboost
+matplotlib
+shap
+seaborn
